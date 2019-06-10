@@ -66,24 +66,26 @@ class Lite {
         return $this->config;
     }
 
-    public function send($queueName, $content)
+    public function publish($exchangeName, $content)
     {
         $connection = $this->getConnection();
         $channel = $connection->channel();
-        $channel->queue_declare($queueName, false, true, false, false);
+        $channel->exchange_declare($exchangeName, 'fanout', false, false, false);
         $msg = new AMQPMessage($content, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
-        $channel->basic_publish($msg, '', $queueName);
+        $channel->basic_publish($msg, $exchangeName);
         $channel->close();
         $connection->close();
     }
 
-    public function receive($queueName)
+    public function subscribe($exchangeName)
     {
         $rs = null;
         $connection = $this->getConnection();
         $channel = $connection->channel();
-        $channel->queue_declare($queueName, false, true, false, false);
-        $callback = function ($msg) {
+        $channel->exchange_declare($exchangeName, 'fanout', false, false, false);
+        list($queue_name, ,) = $channel->queue_declare('', false, false, true, false);
+        $channel->queue_bind($queueName, $exchangeName);
+        $callback = function ($msg) use($rs) {
             $rs = $msg->body;
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
         };
