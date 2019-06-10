@@ -10,7 +10,8 @@ class Lite {
 
     protected $client;
 
-    public function __construct($config = NULL) {
+    public function __construct($config = NULL)
+    {
         $this->config = $config;
         if ($this->config === NULL) {
             $this->config = \PhalApi\DI()->config->get('app.AliyunAmqp');
@@ -27,12 +28,14 @@ class Lite {
         */
     }
 
-    private function getUser($resourceOwnerId, $accessKey) {
+    private function getUser($resourceOwnerId, $accessKey)
+    {
         $t = '0:' . $resourceOwnerId . ':' . $accessKey;
         return base64_encode($t);
     }
 
-    private function getPassword($accessSecret) {
+    private function getPassword($accessSecret)
+    {
         $ts = (int)(microtime(true)*1000);
         $value = utf8_encode($accessSecret);
         $key = utf8_encode((string)$ts);
@@ -40,7 +43,8 @@ class Lite {
         return base64_encode(utf8_encode($sig . ':' . $ts));
     }
 
-    private function getConnection() {
+    private function getConnection()
+    {
         $accessKeyId        = $this->config['accessKeyId'];
         $accessKeySecret    = $this->config['accessKeySecret'];
         $host               = $this->config['endpoint'];
@@ -52,11 +56,13 @@ class Lite {
         return new AMQPStreamConnection($host, $port, $username, $password, $virtualHost, false);
     }
 
-    public function getClient() {
+    public function getClient()
+    {
         return $this->client;
     }
 
-    public function getConfig() {
+    public function getConfig()
+    {
         return $this->config;
     }
 
@@ -73,12 +79,12 @@ class Lite {
 
     public function receive($queueName, $content)
     {
+        $rs = null;
         $connection = $this->getConnection();
         $channel = $connection->channel();
         $channel->queue_declare($queueName, false, true, false, false);
-        echo " [*] Waiting for messages. To exit press CTRL+C\n";
         $callback = function ($msg) {
-            echo ' [x] Received ', $msg->body, "\n";
+            $rs = $msg->body;
             $msg->delivery_info['channel']->basic_ack($msg->delivery_info['delivery_tag']);
         };
         $channel->basic_consume($queueName, '', false, true, false, false, $callback);
@@ -87,6 +93,7 @@ class Lite {
         }
         $channel->close();
         $connection->close();
+        return $rs;
     }
 
 }
