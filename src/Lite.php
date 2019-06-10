@@ -77,7 +77,7 @@ class Lite {
         $connection->close();
     }
 
-    public function receive($queueName, $content)
+    public function receive($queueName)
     {
         $rs = null;
         $connection = $this->getConnection();
