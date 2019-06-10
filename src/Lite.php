@@ -15,12 +15,7 @@ class Lite {
         if ($this->config === NULL) {
             $this->config = \PhalApi\DI()->config->get('app.AliyunAmqp');
         }
-        $accessKeyId        = $this->config['accessKeyId'];
-        $accessKeySecret    = $this->config['accessKeySecret'];
-        $host               = $this->config['endpoint'];
-        $port               = $this->config['port'];
-        $virtualHost        = $this->config['virtualHost'];
-        $resourceOwnerId    = $this->config['resourceOwnerId'];
+        /*
         try {
             $username = $this->getUser($resourceOwnerId, $accessKeyId);
             $password = $this->getPassword($accessKeySecret);
@@ -29,6 +24,7 @@ class Lite {
         } catch (OssException $e) {
             \PhalApi\DI()->logger->error($e->getMessage());
         }
+        */
     }
 
     private function getUser($resourceOwnerId, $accessKey) {
@@ -44,6 +40,18 @@ class Lite {
         return base64_encode(utf8_encode($sig . ':' . $ts));
     }
 
+    private function getConnection() {
+        $accessKeyId        = $this->config['accessKeyId'];
+        $accessKeySecret    = $this->config['accessKeySecret'];
+        $host               = $this->config['endpoint'];
+        $port               = $this->config['port'];
+        $virtualHost        = $this->config['virtualHost'];
+        $resourceOwnerId    = $this->config['resourceOwnerId'];
+        $username = $this->getUser($resourceOwnerId, $accessKeyId);
+        $password = $this->getPassword($accessKeySecret);
+        return new AMQPStreamConnection($host, $port, $username, $password, $virtualHost, false);
+    }
+
     public function getClient() {
         return $this->client;
     }
@@ -54,16 +62,19 @@ class Lite {
 
     public function send($queueName, $content)
     {
-        $channel = $this->client->channel();
+        $connection = $this->getConnection();
+        $channel = $connection->channel();
         $channel->queue_declare($queueName, false, true, false, false);
         $msg = new AMQPMessage($content, array('delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT));
         $channel->basic_publish($msg, '', $queueName);
         $channel->close();
+        $connection->close();
     }
 
     public function receive($queueName, $content)
     {
-        $channel = $this->client->channel();
+        $connection = $this->getConnection();
+        $channel = $connection->channel();
         $channel->queue_declare($queueName, false, true, false, false);
         echo " [*] Waiting for messages. To exit press CTRL+C\n";
         $callback = function ($msg) {
@@ -75,6 +86,7 @@ class Lite {
             $channel->wait();
         }
         $channel->close();
+        $connection->close();
     }
 
 }
